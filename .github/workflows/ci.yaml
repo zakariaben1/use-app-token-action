@@ -1,14 +1,6 @@
 name: Use GitHub App Token
 on:
   push:
-    branches:
-      - "**"
-  pull_request:
-    types:
-      - opened
-      - reopened
-    branches:
-      - main
 
 jobs:
   build_test_and_release:
@@ -31,6 +23,22 @@ jobs:
         run: npm ci
       - name: Run unit tests
         run: npm run test
+      - name: Build dist/index.js
+        run: npm run build
+      - name: Commit dist/index.js
+        run: |
+          git add dist
+          if git diff-index --quiet HEAD dist; then
+            echo "  👍 No changes to commit!"
+            exit 0
+          fi
+          file_changes="$(git status --porcelain --untracked-files=no bin)"
+          commit_message="$(printf 'Continuous Integration Build Artifacts\n\n%s', "${file_changes}")"
+          echo "${file_changes}" | sed 's/^/  /'
+          git config user.name "Continuous Integration"
+          git config user.email 'heroku-production-services@salesforce.com'
+          git commit -a -m "${commit_message}"
+          git push
       - name: Generate app token
         id: get_app_token
         uses: ./
